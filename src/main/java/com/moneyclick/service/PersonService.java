@@ -1,7 +1,11 @@
 package com.moneyclick.service;
 
 import java.math.BigDecimal;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,29 +21,36 @@ import com.moneyclick.bo.PersonBo;
 import com.moneyclick.bo.PersonsBo;
 import com.moneyclick.dto.Person;
 import com.moneyclick.dto.PersonIdentification;
-import com.moneyclick.repository.PersonAadhaarRepository;
+import com.moneyclick.dto.PersonValidation;
+import com.moneyclick.exception.DateParseException;
 import com.moneyclick.repository.PersonIdentificationRepository;
-import com.moneyclick.repository.PersonPanRepository;
 import com.moneyclick.repository.PersonRepository;
+import com.moneyclick.repository.PersonValidationRepository;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class PersonService {
-	public static final String AADHAAR = "Aadhaar";
-	public static final String PAN = "Pan";
 	
-	@Autowired 
+	@Autowired
 	private PersonRepository personRepository;
 	
 	@Autowired
 	private  PersonIdentificationRepository personIdentificationRepository;
 	
 	@Autowired
-	private PersonAadhaarRepository personAadhaarRepository;
+	private PersonValidationRepository personValidationRepository;
 	
-	@Autowired
-	private PersonPanRepository personPanRepository;  
-
+	
+	/**
+	 * This method first inserts the original Person Data(Aadhaar, Pan, etc) in the database first and then validates the data between different identification types(Aadhaar, Pan, etc)
+	 * and the inserts the validated data
+	 * 
+	 * @param personBo
+	 */
 	public void savePersonDetails(PersonBo personBo) {
+		log.info("Person Details received from UI");
 		String uniqueId = UUID.randomUUID().toString();
 		List<PersonIdentification> personIdentificationList = new ArrayList();
 		
@@ -47,80 +58,132 @@ public class PersonService {
 			String docType = idDetails.getKey();
 			IdentificationBo identificationBo = idDetails.getValue();
 			
+			Date dateOfBirth;
+			try {
+				if(identificationBo.getDateOfBirth().length() == 4) {
+					dateOfBirth = new SimpleDateFormat("yyyy").parse(identificationBo.getDateOfBirth());
+				} else {
+					dateOfBirth = new SimpleDateFormat("dd-MM-yyyy").parse(identificationBo.getDateOfBirth());
+				}
+				
+			} catch (ParseException e) {
+				throw new DateParseException("DateParseException occured while parsing the date: " + e);
+			}
+			
 			personIdentificationList.add(PersonIdentification.builder()
 					.uniqueId(uniqueId)
 					.id(identificationBo.getId())
 					.idType(docType)
 					.name(identificationBo.getName())
-					.dob(identificationBo.getDateOfBirth()).build());
+					.dob(dateOfBirth).build());
 		});
 		
+		log.info("Person Identification Details is going to be stored in the database");
 		personIdentificationRepository.saveAll(personIdentificationList);
 		
-		validate(personBo);
-//		personBo.getIdentificationDetails().entrySet().stream().forEach(idDetails -> {
-//			String docType = idDetails.getKey();
-//			IdentificationBo identificationBo = new IdentificationBo();
-//			
-//			switch(docType) {
-//				case AADHAAR:
-//					personAadhaarRepository.save(PersonAadhaar.builder()
-//							.aadhaarId(identificationBo.getId())
-//							.uniqueId(uniqueId)
-//							.aadhaarName(identificationBo.getName())
-//							.aadhaarDob(identificationBo.getDateOfBirth())
-//							//.aadhaarGender(identificationBo.getGender())
-//							.build());
-//					break;
-//				case PAN:
-//					personPanRepository.save(PersonPan.builder()
-//							.panId(identificationBo.getId())
-//							.uniqueId(uniqueId)
-//							.panName(identificationBo.getName())
-//							.panDob(identificationBo.getDateOfBirth()).build());
-//					break;
-//			}
-//		});
+		validateAndInsert(personBo, uniqueId);
 	}
 
-	public void validate(PersonBo personBo) {
-		List<String> names = new ArrayList();
-		personBo.getIdentificationDetails().entrySet()
-			.stream()
-			.forEach(idDetails -> {
-				names.add(idDetails.getValue().getName());
-			});
+	public void validateAndInsert(PersonBo personBo, String uniqueId) {
+		Map<String, Boolean> dateOfBirthMatchMap = validateDateOfBirth(personBo, uniqueId);
+		Map<String, Boolean> nameMatchMap = new HashMap(); //TODO
 		
-		List<List<String>> combinations = Generator.combination(names)
-				  .simple(2)
-				  .stream()
-				  .collect(Collectors.toList());
-		
-		Map<List<String>, Integer> distanceMapping = new HashMap();
-		Map<List<String>, BigDecimal> matchPercentMapping = new HashMap();
-		Map<String, List<BigDecimal>> nameMatchPercentListMap = new HashMap();
-		Map<String, BigDecimal> nameAverageMatchPercentMapping = new HashMap();
-		
-		names.stream().forEach(name -> {
-			nameMatchPercentListMap.put(name, new ArrayList());
+		List<PersonValidation> personValidationList = new ArrayList();
+		personBo.getIdentificationDetails().entrySet().stream().forEach(idDetails -> {
+			String docType = idDetails.getKey();
+			IdentificationBo identificationBo = idDetails.getValue();
+			
+			personValidationList.add(PersonValidation.builder()
+					.uniqueId(uniqueId)
+					.id(identificationBo.getId())
+					.idType(docType)
+					.dobMatch(dateOfBirthMatchMap.get(identificationBo.getDateOfBirth()))
+					.nameMatch(true).build());
 		});
 		
-		combinations.stream().forEach(namesList -> {
-			String firstName = namesList.get(0);
-			String secondName = namesList.get(1);
-			
-			Integer editDistance = editDist(firstName.toUpperCase(), secondName.toUpperCase(), firstName.length(), secondName.length());
-			BigDecimal matchPercent = getMatchPercent(editDistance, Math.max(firstName.length(), secondName.length()));
-			
-			distanceMapping.put(namesList, editDistance);
-			matchPercentMapping.put(namesList, matchPercent);
-			
-			nameMatchPercentListMap.get(firstName).add(matchPercent);
-			nameMatchPercentListMap.get(secondName).add(matchPercent);
-		});
-		System.out.println();
+		personValidationRepository.saveAll(personValidationList);
+		
+//		List<String> names = new ArrayList();
+//		personBo.getIdentificationDetails().entrySet()
+//			.stream()
+//			.forEach(idDetails -> {
+//				names.add(idDetails.getValue().getName());
+//			});
+//		
+//		List<List<String>> combinations = Generator.combination(names)
+//				  .simple(2)
+//				  .stream()
+//				  .collect(Collectors.toList());
+//		
+//		Map<List<String>, Integer> distanceMapping = new HashMap();
+//		Map<List<String>, BigDecimal> matchPercentMapping = new HashMap();
+//		Map<String, List<BigDecimal>> nameMatchPercentListMap = new HashMap();
+//		Map<String, BigDecimal> nameAverageMatchPercentMapping = new HashMap();
+//		
+//		names.stream().forEach(name -> {
+//			nameMatchPercentListMap.put(name, new ArrayList());
+//		});
+//		
+//		combinations.stream().forEach(namesList -> {
+//			String firstName = namesList.get(0);
+//			String secondName = namesList.get(1);
+//			
+//			Integer editDistance = editDist(firstName.toUpperCase(), secondName.toUpperCase(), firstName.length(), secondName.length());
+//			BigDecimal matchPercent = getMatchPercent(editDistance, Math.max(firstName.length(), secondName.length()));
+//			
+//			distanceMapping.put(namesList, editDistance);
+//			matchPercentMapping.put(namesList, matchPercent);
+//			
+//			nameMatchPercentListMap.get(firstName).add(matchPercent);
+//			nameMatchPercentListMap.get(secondName).add(matchPercent);
+//		});
 	}
 	
+	private Map<String, Boolean> validateDateOfBirth(PersonBo personBo, String uniqueId) {
+		Map<String, Boolean> dateOfBirthMatchMap = new HashMap();
+		
+		Map<String, Integer> dateOfBirthCountMap = new HashMap();
+		
+		personBo.getIdentificationDetails().entrySet().stream().forEach(idDetails -> {
+			String dateOfBirth = idDetails.getValue().getDateOfBirth();
+			dateOfBirthMatchMap.put(dateOfBirth, false);
+			
+			if(dateOfBirthCountMap.get(dateOfBirth) != null) {
+				dateOfBirthCountMap.put(dateOfBirth, dateOfBirthCountMap.get(dateOfBirth) + 1);
+			} else {
+				dateOfBirthCountMap.put(dateOfBirth, 1);
+			}
+			
+			if(dateOfBirth.length() == 4) {
+				dateOfBirthCountMap.put(dateOfBirth, 0);
+			}
+		});
+		
+		Integer maxCount = Collections.max(dateOfBirthCountMap.values());
+		
+		if(maxCount > 1) {
+			String dateOfBirth = getKey(dateOfBirthCountMap, maxCount);
+			
+			personBo.getIdentificationDetails().entrySet().stream().forEach(idDetails -> {
+				IdentificationBo identificationBo = idDetails.getValue();
+				boolean dobMatch = dateOfBirth.equalsIgnoreCase(identificationBo.getDateOfBirth()) ? true : false;
+				
+				dateOfBirthMatchMap.put(identificationBo.getDateOfBirth(), dobMatch);
+			});
+		}
+		
+		return dateOfBirthMatchMap;
+	}
+	
+	private String getKey(Map<String, Integer> dateOfBirthCountMap, Integer count) {
+		for (Map.Entry<String, Integer> entry : dateOfBirthCountMap.entrySet()) {
+			if (count.equals(entry.getValue())) {
+				return entry.getKey();
+			}
+		}
+		return null;
+	}
+
 	private BigDecimal getMatchPercent(Integer editDistance, int maxLength) {
 		double match = (double)1-((double)editDistance/(double)maxLength);
 		//BigDecimal error = new BigDecimal((double)1-((double)editDistance/(double)maxLength)).setScale(4);
@@ -161,9 +224,47 @@ public class PersonService {
    
         return dp[m][n]; 
     }
-
-	public PersonsBo getPersons(String name) {
-		List<Person> persons = (List<Person>)personRepository.findByNameContaining(name);
+	
+	
+	/**
+	 * This method returns a map of uniqueId and name for either all persons or the persons matching the name (even a substring could be matched)
+	 * provided by the admin
+	 * 
+	 * @param name
+	 * @return PersonsBo
+	 */
+	public PersonsBo getPersonsByName(String name) {
+		List<Person> persons = null;
+		if(!name.equalsIgnoreCase("everyone")) {
+			persons = (List<Person>)personRepository.findByNameContainingIgnoreCase(name);
+		} else {
+			persons = (List<Person>)personRepository.findAll();
+		}
+		
+		log.info("list of persons is successfully retrieved from the database by name");
+		return getPersonsBo(persons);
+	}
+	
+	
+	/**
+	 * This method returns the Validation Data for a single person
+	 * 
+	 * @param id
+	 * @return List<PersonValidation>
+	 */
+	public List<PersonValidation> getValidationResult(String id) {
+		log.info("Person validation Data is going to be retrieved from the database by id");
+		return personValidationRepository.findByUniqueId(id);
+	}
+	
+	
+	/**
+	 * This method returns a map of uniqueId and name for given persons
+	 * 
+	 * @param persons
+	 * @return PersonsBo
+	 */
+	private PersonsBo getPersonsBo(List<Person> persons) {
 		Map<String, String> idNameMapping = new HashMap();
 		
 		persons.stream().forEach(person -> {

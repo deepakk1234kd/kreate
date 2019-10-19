@@ -7,6 +7,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * This is the DTO for the PERSON TABLE
+ * 
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

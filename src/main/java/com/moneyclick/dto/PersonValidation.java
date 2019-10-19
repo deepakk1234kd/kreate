@@ -1,7 +1,5 @@
 package com.moneyclick.dto;
 
-import java.util.Date;
-
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.IdClass;
@@ -14,7 +12,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * This is the DTO for the PERSON_IDENTIFICATION TABLE
+ * This is the DTO for the PERSON_VALIDATION TABLE
  * 
  */
 @Data
@@ -23,8 +21,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @Entity
 @IdClass(CompositeKeyPersonIdentification.class)
-public class PersonIdentification {
-	
+public class PersonValidation {
+
 	@Id
 	private String uniqueId;
 	
@@ -34,7 +32,8 @@ public class PersonIdentification {
 	@Id
 	private String idType;
 	
-	private String name;
+	private boolean nameMatch;
 	
-	private Date dob;
+	private boolean dobMatch;
+	
 }

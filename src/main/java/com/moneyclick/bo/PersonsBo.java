@@ -7,6 +7,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * This is the class which has a map of id and name which is sent back to the UI for the Dashboard page
+ *
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

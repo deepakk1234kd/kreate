@@ -5,6 +5,10 @@ import java.io.Serializable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+/**
+ * This the class which represents composite primary key for some tables
+ * 
+ */
 @EqualsAndHashCode
 @ToString
 public class CompositeKeyPersonIdentification implements Serializable{
