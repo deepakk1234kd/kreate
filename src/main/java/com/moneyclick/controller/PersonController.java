@@ -2,6 +2,7 @@
 package com.moneyclick.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.moneyclick.bo.PersonBo;
-import com.moneyclick.bo.PersonsBo;
+import com.moneyclick.dto.Person;
 import com.moneyclick.dto.PersonValidation;
 import com.moneyclick.service.PersonService;
 
@@ -47,7 +48,7 @@ public class PersonController {
 	 * @return PersonsBo
 	 */
 	@GetMapping("/persons")
-	public PersonsBo getPersonsByName(@RequestParam(defaultValue="everyone") String name) {
+	public List<Person> getPersonsByName(@RequestParam(defaultValue="everyone") String name) {
 		return personService.getPersonsByName(name);
 	}
 	
@@ -59,8 +60,8 @@ public class PersonController {
 	 * @return List<PersonValidation>
 	 */
 	@GetMapping("/person/{id}")
-	public List<PersonValidation> getValidationResult(@PathVariable("id") String id) {
-		List<PersonValidation> personValidationDetails = personService.getValidationResult(id);
+	public Map<String, PersonValidation> getValidationResult(@PathVariable("id") String id) {
+		Map<String, PersonValidation> personValidationDetails = personService.getValidationResult(id);
 		log.info("Person validation Data is successfully retrieved from the database by id");
 		return personValidationDetails;
 	}

@@ -47,6 +47,8 @@ public class PersonService {
 	 */
 	public void savePersonDetails(PersonBo personBo) {
 		log.info("Person Details received from UI");
+		//if(personBo)
+		
 		String uniqueId = UUID.randomUUID().toString();
 		List<PersonIdentification> personIdentificationList = new ArrayList();
 		
@@ -294,7 +296,7 @@ public class PersonService {
 	 * @param name
 	 * @return PersonsBo
 	 */
-	public PersonsBo getPersonsByName(String name) {
+	public List<Person> getPersonsByName(String name) {
 		List<Person> persons = null;
 		if(!name.equalsIgnoreCase("everyone")) {
 			persons = (List<Person>)personRepository.findByNameContainingIgnoreCase(name);
@@ -303,7 +305,7 @@ public class PersonService {
 		}
 		
 		log.info("list of persons is successfully retrieved from the database by name");
-		return getPersonsBo(persons);
+		return persons;
 	}
 	
 	
@@ -313,9 +315,16 @@ public class PersonService {
 	 * @param id
 	 * @return List<PersonValidation>
 	 */
-	public List<PersonValidation> getValidationResult(String id) {
+	public Map<String, PersonValidation> getValidationResult(String id) {
 		log.info("Person validation Data is going to be retrieved from the database by id");
-		return personValidationRepository.findByUniqueId(id);
+		Map<String, PersonValidation> personValidationDetails = new HashMap();
+		List<PersonValidation> personValidationList = personValidationRepository.findByUniqueId(id);
+		
+		personValidationList.stream().forEach(personValidation -> {
+			personValidationDetails.put(personValidation.getIdType(), personValidation);
+		});
+		
+		return personValidationDetails;
 	}
 	
 	
