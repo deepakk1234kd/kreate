@@ -3,15 +3,10 @@ package com.moneyclick.service;
 import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import com.moneyclick.dto.NameDetails;
 import org.paukov.combinatorics3.Generator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -86,7 +81,7 @@ public class PersonService {
 
 	public void validateAndInsert(PersonBo personBo, String uniqueId) {
 		Map<String, Boolean> dateOfBirthMatchMap = validateDateOfBirth(personBo, uniqueId);
-		Map<String, Boolean> nameMatchMap = new HashMap(); //TODO
+		Map<String, Boolean> nameMatchMap = validateName(personBo); //TODO
 		
 		List<PersonValidation> personValidationList = new ArrayList();
 		personBo.getIdentificationDetails().entrySet().stream().forEach(idDetails -> {
@@ -98,7 +93,7 @@ public class PersonService {
 					.id(identificationBo.getId())
 					.idType(docType)
 					.dobMatch(dateOfBirthMatchMap.get(identificationBo.getDateOfBirth()))
-					.nameMatch(true).build());
+					.nameMatch(nameMatchMap.get(identificationBo.getName())).build());
 		});
 		
 		personValidationRepository.saveAll(personValidationList);
@@ -174,6 +169,67 @@ public class PersonService {
 		
 		return dateOfBirthMatchMap;
 	}
+
+	private Map<String, Boolean> validateName(PersonBo personBo) {
+	    List<NameDetails> nameMap = personBo.getIdentificationDetails().entrySet().stream()
+                .map(this::generateNameDetails)
+                .collect(Collectors.toList());
+
+	    for (int i=0; i<nameMap.size(); i++) {
+	        for (int j=i; j<nameMap.size(); j++) {
+	            compareNameDetails(nameMap.get(i), nameMap.get(j), i, j);
+            }
+        }
+
+        NameDetails mainName = nameMap.get(0);
+	    for (NameDetails details: nameMap) {
+	        if (mainName.getScore() < details.getScore())
+	            mainName = details;
+        }
+
+        Map<String, Boolean> result = new HashMap<>();
+        for (int i = 0; i < nameMap.size(); i++) {
+            NameDetails details = nameMap.get(i);
+            if (details.getDocType().equalsIgnoreCase(mainName.getDocType()) || mainName.getMatchedIndices().contains(i))
+                result.put(details.getName(), true);
+            else
+                result.put(details.getName(), false);
+        }
+
+        return result;
+    }
+
+    private NameDetails generateNameDetails(Map.Entry<String, IdentificationBo> identity) {
+	    List<String> nameParts = Arrays.asList(identity.getValue().getName().split(" "));
+
+	    String first = nameParts.remove(0).toLowerCase();
+	    char firstInitial = first.charAt(0);
+	    String last = nameParts.remove(nameParts.size()-1).toLowerCase();
+	    char lastInitial = last.charAt(0);
+	    String middle = String.join("", nameParts).toLowerCase() + " ";
+
+	    List<String> possibleNames = new ArrayList<>();
+	    possibleNames.add(first+" "+middle+last);
+	    possibleNames.add(last+" "+middle+first);
+        possibleNames.add(firstInitial+" "+middle+last);
+        possibleNames.add(last+" "+middle+firstInitial);
+        possibleNames.add(first+" "+middle+lastInitial);
+        possibleNames.add(lastInitial+" "+middle+first);
+
+	    return new NameDetails(identity.getKey(), identity.getValue().getName(), possibleNames, new HashSet<>(), 0);
+    }
+
+    private void compareNameDetails(NameDetails details1, NameDetails details2, int ind1, int ind2) {
+	    for (String possibleName1: details1.getPossibleNames()) {
+	        if (details2.getPossibleNames().contains(possibleName1)) {
+	            details1.incrementScore();
+	            details1.getMatchedIndices().add(ind2);
+	            details2.incrementScore();
+	            details2.getMatchedIndices().add(ind1);
+                return;
+            }
+        }
+    }
 	
 	private String getKey(Map<String, Integer> dateOfBirthCountMap, Integer count) {
 		for (Map.Entry<String, Integer> entry : dateOfBirthCountMap.entrySet()) {
