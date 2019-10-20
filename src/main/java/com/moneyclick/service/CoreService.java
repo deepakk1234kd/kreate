@@ -2,9 +2,7 @@ package com.moneyclick.service;
 
 import com.moneyclick.bo.IdentificationBo;
 import com.moneyclick.bo.PersonBo;
-import com.moneyclick.repository.PersonAadhaarRepository;
 import com.moneyclick.repository.PersonIdentificationRepository;
-import com.moneyclick.repository.PersonPanRepository;
 import com.moneyclick.utils.Constants;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +22,6 @@ import java.util.stream.Stream;
 public class CoreService {
     @Autowired
     private PersonIdentificationRepository personIdentificationRepository;
-
-    @Autowired
-    private PersonAadhaarRepository personAadhaarRepository;
-
-    @Autowired
-    private PersonPanRepository personPanRepository;
 
     @Autowired
     private CloudmersiveService cloudmersiveService;
