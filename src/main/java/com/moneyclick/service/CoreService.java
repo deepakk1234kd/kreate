@@ -32,6 +32,7 @@ public class CoreService {
     private PersonService personService;
 
     public void process() {
+        personService.deleteAll();
         try (Stream<Path> paths = Files.walk(Paths.get(Constants.INPUT_DIR), 1)) {
             paths.filter(Files::isDirectory)
                     .filter(p -> !p.toString().equals(Constants.INPUT_DIR))
@@ -73,7 +74,7 @@ public class CoreService {
             return new PersonBo(idMap);
         } catch (IOException e) {
             e.printStackTrace();
-            return null;
+            throw new RuntimeException(e.getMessage());
         }
     }
 

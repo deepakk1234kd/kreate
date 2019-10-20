@@ -40,7 +40,7 @@ public class CloudmersiveService {
         } catch (Exception e) {
             //e.printStackTrace();
             System.out.println(e.getMessage());
-            return new ArrayList<>();
+            throw new RuntimeException(e.getMessage());
         }
     }
 }

@@ -160,7 +160,9 @@ public class PersonService {
 			}
 		});
 		
-		Integer maxCount = Collections.max(dateOfBirthCountMap.values());
+		Integer maxCount = 0;
+		if (dateOfBirthCountMap.size() > 0)
+			maxCount = Collections.max(dateOfBirthCountMap.values());
 		
 		if(maxCount > 1) {
 			String dateOfBirth = getKey(dateOfBirthCountMap, maxCount);
@@ -186,6 +188,9 @@ public class PersonService {
 	            compareNameDetails(nameMap.get(i), nameMap.get(j), i, j);
             }
         }
+
+        if (nameMap.isEmpty())
+        	throw new RuntimeException("");
 
         NameDetails mainName = nameMap.get(0);
 	    for (NameDetails details: nameMap) {
@@ -343,6 +348,12 @@ public class PersonService {
 		
 		return PersonsBo.builder()
 				.idNameMapping(idNameMapping).build();
+	}
+
+	public void deleteAll() {
+		personRepository.deleteAll();
+		personIdentificationRepository.deleteAll();
+		personValidationRepository.deleteAll();
 	}
 
 }
