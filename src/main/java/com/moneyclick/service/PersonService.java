@@ -59,7 +59,7 @@ public class PersonService {
 				if(identificationBo.getDateOfBirth().length() == 4) {
 					dateOfBirth = new SimpleDateFormat("yyyy").parse(identificationBo.getDateOfBirth());
 				} else {
-					dateOfBirth = new SimpleDateFormat("dd-MM-yyyy").parse(identificationBo.getDateOfBirth());
+					dateOfBirth = new SimpleDateFormat("yyyy-MM-dd").parse(identificationBo.getDateOfBirth());
 				}
 				
 			} catch (ParseException e) {
@@ -204,7 +204,8 @@ public class PersonService {
     }
 
     private NameDetails generateNameDetails(Map.Entry<String, IdentificationBo> identity) {
-	    List<String> nameParts = Arrays.asList(identity.getValue().getName().split(" "));
+	    List<String> nameParts = new ArrayList<>();
+	    Collections.addAll(nameParts, identity.getValue().getName().split(" "));
 
 	    String first = nameParts.remove(0).toLowerCase();
 	    char firstInitial = first.charAt(0);

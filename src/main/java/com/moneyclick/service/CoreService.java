@@ -4,6 +4,7 @@ import com.moneyclick.bo.IdentificationBo;
 import com.moneyclick.bo.PersonBo;
 import com.moneyclick.repository.PersonIdentificationRepository;
 import com.moneyclick.utils.Constants;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
+@Slf4j
 public class CoreService {
     @Autowired
     private PersonIdentificationRepository personIdentificationRepository;
@@ -42,6 +44,7 @@ public class CoreService {
 
     private PersonBo processPerson(Path personDir) {
         try (Stream<Path> personFiles = Files.walk(personDir, 1)) {
+            log.info("Processing documents in folder " + personDir.toString());
             List<IdentificationBo> identities = personFiles.filter(Files::isRegularFile)
                     .filter(path -> {
                         String fileName = FilenameUtils.removeExtension(path.getFileName().toString());
@@ -61,6 +64,7 @@ public class CoreService {
                                 return null;
                         }
                     })
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
 
             Map<String, IdentificationBo> idMap = new HashMap<>();
