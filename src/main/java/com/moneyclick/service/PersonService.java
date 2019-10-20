@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.moneyclick.dto.NameDetails;
+import javafx.util.Pair;
 import org.paukov.combinatorics3.Generator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -81,7 +82,8 @@ public class PersonService {
 
 	public void validateAndInsert(PersonBo personBo, String uniqueId) {
 		Map<String, Boolean> dateOfBirthMatchMap = validateDateOfBirth(personBo, uniqueId);
-		Map<String, Boolean> nameMatchMap = validateName(personBo); //TODO
+		Pair<String, Map<String, Boolean>> validationRes = validateName(personBo); //TODO
+        Map<String, Boolean> nameMatchMap = validationRes.getValue();
 		
 		List<PersonValidation> personValidationList = new ArrayList();
 		personBo.getIdentificationDetails().entrySet().stream().forEach(idDetails -> {
@@ -95,7 +97,9 @@ public class PersonService {
 					.dobMatch(dateOfBirthMatchMap.get(identificationBo.getDateOfBirth()))
 					.nameMatch(nameMatchMap.get(identificationBo.getName())).build());
 		});
-		
+
+
+		personRepository.save(new Person(uniqueId, validationRes.getKey()));
 		personValidationRepository.saveAll(personValidationList);
 		
 //		List<String> names = new ArrayList();
@@ -170,7 +174,7 @@ public class PersonService {
 		return dateOfBirthMatchMap;
 	}
 
-	private Map<String, Boolean> validateName(PersonBo personBo) {
+	private Pair<String, Map<String, Boolean>> validateName(PersonBo personBo) {
 	    List<NameDetails> nameMap = personBo.getIdentificationDetails().entrySet().stream()
                 .map(this::generateNameDetails)
                 .collect(Collectors.toList());
@@ -196,7 +200,7 @@ public class PersonService {
                 result.put(details.getName(), false);
         }
 
-        return result;
+        return new Pair<>(mainName.getName(), result);
     }
 
     private NameDetails generateNameDetails(Map.Entry<String, IdentificationBo> identity) {
